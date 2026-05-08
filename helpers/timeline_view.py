@@ -152,11 +152,19 @@ def find_silences(words: list[dict], start: float, end: float, threshold: float 
 
 
 FONT_CANDIDATES = [
+    # macOS
     "/System/Library/Fonts/Menlo.ttc",
     "/System/Library/Fonts/Helvetica.ttc",
     "/System/Library/Fonts/SFNSMono.ttf",
+    # Linux
     "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
     "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
+    # Windows
+    "C:/Windows/Fonts/consola.ttf",      # Consolas
+    "C:/Windows/Fonts/CascadiaCode.ttf",
+    "C:/Windows/Fonts/CascadiaMono.ttf",
+    "C:/Windows/Fonts/segoeui.ttf",      # Segoe UI
+    "C:/Windows/Fonts/arial.ttf",
 ]
 
 

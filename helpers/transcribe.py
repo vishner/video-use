@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 import tempfile
@@ -26,24 +25,15 @@ from pathlib import Path
 
 import requests
 
+from _env import load_elevenlabs_key
+
 
 SCRIBE_URL = "https://api.elevenlabs.io/v1/speech-to-text"
 
 
 def load_api_key() -> str:
-    for candidate in [Path(__file__).resolve().parent.parent / ".env", Path(".env")]:
-        if candidate.exists():
-            for line in candidate.read_text().splitlines():
-                line = line.strip()
-                if not line or line.startswith("#") or "=" not in line:
-                    continue
-                k, v = line.split("=", 1)
-                if k.strip() == "ELEVENLABS_API_KEY":
-                    return v.strip().strip('"').strip("'")
-    v = os.environ.get("ELEVENLABS_API_KEY", "")
-    if not v:
-        sys.exit("ELEVENLABS_API_KEY not found in .env or environment")
-    return v
+    """Backwards-compatible wrapper — prefer importing from `_env` directly."""
+    return load_elevenlabs_key()
 
 
 def extract_audio(video_path: Path, dest: Path) -> None:
@@ -52,7 +42,14 @@ def extract_audio(video_path: Path, dest: Path) -> None:
         "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le",
         str(dest),
     ]
-    subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    proc = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    if proc.returncode != 0:
+        err = (proc.stderr or b"").decode(errors="replace")
+        tail = "\n".join(err.strip().splitlines()[-15:]) or "(no stderr)"
+        sys.exit(
+            f"ffmpeg failed to extract audio from {video_path.name}\n"
+            f"  stderr (last 15 lines):\n{tail}"
+        )
 
 
 def call_scribe(

@@ -82,6 +82,24 @@ def run(cmd: list[str], quiet: bool = False) -> None:
     subprocess.run(cmd, check=True)
 
 
+def run_ffmpeg(cmd: list[str], context: str) -> None:
+    """Run an ffmpeg command, capturing stderr. On failure, print a useful
+    excerpt of stderr along with the failing command and exit non-zero.
+
+    Use this anywhere we'd previously call ``subprocess.run(..., check=True,
+    stderr=subprocess.PIPE)`` and silently lose the error context.
+    """
+    proc = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    if proc.returncode == 0:
+        return
+    err = (proc.stderr or b"").decode(errors="replace")
+    tail = "\n".join(err.strip().splitlines()[-20:]) or "(no stderr)"
+    print(f"\nffmpeg failed during: {context}", file=sys.stderr)
+    print(f"  cmd: {' '.join(str(c) for c in cmd)}", file=sys.stderr)
+    print(f"  stderr (last 20 lines):\n{tail}", file=sys.stderr)
+    sys.exit(proc.returncode or 1)
+
+
 def get_video_duration(path: Path) -> float:
     """Return duration in seconds via ffprobe."""
     out = subprocess.run(
@@ -296,7 +314,7 @@ def extract_segment(
             *video_codec, "-movflags", "+faststart",
             str(out_path),
         ]
-        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        run_ffmpeg(cmd, context=f"segment extract {out_path.name}")
         return
 
     # --- Effect: use filter_complex ---
@@ -351,7 +369,7 @@ def extract_segment(
         *video_codec, "-movflags", "+faststart",
         str(out_path),
     ]
-    subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    run_ffmpeg(cmd, context=f"effect segment extract {out_path.name} (effect={effect})")
 
 
 def extract_all_segments(
@@ -451,7 +469,7 @@ def concat_segments(segment_paths: list[Path], out_path: Path, edit_dir: Path) -
         str(out_path),
     ]
     print(f"concat -> {out_path.name}")
-    subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    run_ffmpeg(cmd, context=f"concat -> {out_path.name}")
     concat_list.unlink(missing_ok=True)
 
 
@@ -602,7 +620,7 @@ def apply_loudnorm_two_pass(
             str(output_path),
         ]
         print(f"  loudnorm (1-pass preview) -> {output_path.name}")
-        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        run_ffmpeg(cmd, context="loudnorm (1-pass preview)")
         return True
 
     print(f"  loudnorm pass 1: measuring {input_path.name}")
@@ -633,7 +651,7 @@ def apply_loudnorm_two_pass(
         str(output_path),
     ]
     print(f"  loudnorm pass 2: normalizing -> {output_path.name}")
-    subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    run_ffmpeg(cmd, context="loudnorm (pass 2)")
     return True
 
 
@@ -820,7 +838,7 @@ def build_final_composite(
         "-movflags", "+faststart",
         str(out_path),
     ]
-    subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    run_ffmpeg(cmd, context=f"final composite -> {out_path.name}")
 
 
 # -------- Main ---------------------------------------------------------------

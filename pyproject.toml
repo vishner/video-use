@@ -4,15 +4,20 @@ version = "0.1.0"
 description = "Conversation-driven video editor skill for Claude Code"
 requires-python = ">=3.10"
 dependencies = [
-    "requests",
-    "librosa",
-    "matplotlib",
-    "pillow",
-    "numpy",
+    "requests>=2.31",
+    "librosa>=0.10",
+    "matplotlib>=3.7",
+    "pillow>=10.0",
+    "numpy>=1.24",
 ]
 
 [project.optional-dependencies]
-animations = ["manim"]
+animations = ["manim>=0.18"]
+approach = ["opencv-python-headless>=4.8"]
+all = [
+    "manim>=0.18",
+    "opencv-python-headless>=4.8",
+]
 
 [build-system]
 requires = ["setuptools>=61.0"]

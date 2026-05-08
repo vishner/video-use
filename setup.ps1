@@ -1,4 +1,4 @@
-# video-use setup script for Windows
+# video-use setup script for Windows (PowerShell 5+)
 # Run from PowerShell:  .\setup.ps1
 # (If blocked: Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass)
 
@@ -37,6 +37,9 @@ if ($major -lt 3 -or ($major -eq 3 -and $minor -lt 10)) {
     Write-Err2 "Python $major.$minor found, but >= 3.10 is required."
     exit 1
 }
+if ($major -eq 3 -and $minor -ge 14) {
+    Write-Warn2 "Python $major.$minor detected. Some scientific wheels (e.g. librosa) may lag on very new Python releases. Recommended: 3.11 or 3.12."
+}
 
 # ----------------------------------------------------------------- pip install
 Write-Step "Installing Python dependencies (this can take a few minutes)"
@@ -48,6 +51,15 @@ if ($LASTEXITCODE -ne 0) {
     if ($LASTEXITCODE -ne 0) { Write-Err2 "pip install failed."; exit 1 }
 }
 Write-OK "Python deps installed."
+
+# Optional: opencv for detect_approach.py
+Write-Step "Installing opencv (for helpers/detect_approach.py)"
+& $pyExe -m pip install "opencv-python-headless>=4.8"
+if ($LASTEXITCODE -eq 0) {
+    Write-OK "opencv-python-headless installed."
+} else {
+    Write-Warn2 "opencv install failed -- detect_approach.py will not run until 'pip install opencv-python-headless' succeeds."
+}
 
 # ----------------------------------------------------------------- ffmpeg
 Write-Step "Checking ffmpeg + ffprobe"
@@ -74,24 +86,43 @@ Write-Step "Checking yt-dlp (optional, for URL sources)"
 if (Get-Command yt-dlp -ErrorAction SilentlyContinue) {
     Write-OK "yt-dlp present."
 } else {
-    Write-Warn2 "yt-dlp missing. Installing via pip (optional — only needed for URL sources)."
+    Write-Warn2 "yt-dlp missing. Installing via pip (optional -- only needed for URL sources)."
     & $pyExe -m pip install yt-dlp
 }
 
 # ----------------------------------------------------------------- ElevenLabs key validation
 Write-Step "Validating ElevenLabs API key"
 $envPath = Join-Path $RepoRoot ".env"
-if (-not (Test-Path $envPath)) { Write-Err2 ".env file missing at $envPath"; exit 1 }
-$key = (Get-Content $envPath | Where-Object { $_ -match '^ELEVENLABS_API_KEY=' }) -replace '^ELEVENLABS_API_KEY=', ''
-$key = $key.Trim().Trim('"').Trim("'")
-if (-not $key) { Write-Err2 "ELEVENLABS_API_KEY is empty in .env"; exit 1 }
+if (-not (Test-Path $envPath)) {
+    Write-Warn2 ".env file missing at $envPath. Creating empty stub from .env.example."
+    $examplePath = Join-Path $RepoRoot ".env.example"
+    if (Test-Path $examplePath) {
+        Copy-Item $examplePath $envPath
+    } else {
+        "ELEVENLABS_API_KEY=" | Out-File -Encoding ascii $envPath
+    }
+    Write-Warn2 "Edit $envPath and paste your key, then re-run this script."
+    exit 1
+}
+$keyLine = Get-Content $envPath | Where-Object { $_ -match '^ELEVENLABS_API_KEY=' } | Select-Object -First 1
+$key = ""
+if ($keyLine) {
+    $key = ($keyLine -replace '^ELEVENLABS_API_KEY=', '').Trim().Trim('"').Trim("'")
+}
+if (-not $key) {
+    Write-Err2 "ELEVENLABS_API_KEY is empty in .env. Paste your key and re-run."
+    exit 1
+}
 try {
     $resp = Invoke-WebRequest -Uri "https://api.elevenlabs.io/v1/user" -Headers @{ "xi-api-key" = $key } -UseBasicParsing -TimeoutSec 15
     if ($resp.StatusCode -eq 200) { Write-OK "ElevenLabs key is valid (HTTP 200)." }
-    else { Write-Warn2 "Unexpected HTTP $($resp.StatusCode) — check your key." }
+    else { Write-Warn2 "Unexpected HTTP $($resp.StatusCode) -- check your key." }
 } catch {
-    $code = $_.Exception.Response.StatusCode.value__
-    if ($code -eq 401) { Write-Err2 "ElevenLabs returned 401 Unauthorized — the key is wrong or expired." }
+    $code = $null
+    if ($_.Exception.Response -ne $null) {
+        try { $code = $_.Exception.Response.StatusCode.value__ } catch {}
+    }
+    if ($code -eq 401) { Write-Err2 "ElevenLabs returned 401 Unauthorized -- the key is wrong or expired." }
     else { Write-Warn2 "Could not reach ElevenLabs: $($_.Exception.Message)" }
 }
 
@@ -113,14 +144,24 @@ if (Test-Path $linkPath) {
 
 # ----------------------------------------------------------------- Smoke test
 Write-Step "Smoke test"
-& $pyExe (Join-Path $RepoRoot "helpers\timeline_view.py") --help | Select-Object -First 1
-if ($LASTEXITCODE -eq 0) { Write-OK "helpers/timeline_view.py runs." } else { Write-Warn2 "timeline_view.py --help failed; check Python deps." }
+$smokeFailed = $false
+foreach ($helper in @("timeline_view.py", "render.py", "transcribe.py", "pack_transcripts.py", "grade.py", "analyze_audio.py", "sparkle_overlay.py")) {
+    $script = Join-Path $RepoRoot "helpers\$helper"
+    if (-not (Test-Path $script)) { Write-Warn2 "missing helper: $helper"; continue }
+    & $pyExe $script --help *>$null
+    if ($LASTEXITCODE -eq 0) { Write-OK "$helper --help OK" }
+    else { Write-Err2 "$helper --help FAILED"; $smokeFailed = $true }
+}
 
 if (Get-Command ffprobe -ErrorAction SilentlyContinue) {
-    & ffprobe -version | Select-Object -First 1
+    & ffprobe -version | Select-Object -First 1 | Out-Null
     Write-OK "ffprobe runs."
 }
 
-Write-Host "`n=== Setup complete ===" -ForegroundColor Cyan
-Write-Host "Next: cd into a folder of raw video, run 'claude' there, and say:"
-Write-Host '   "edit these into a launch video"' -ForegroundColor Yellow
+if ($smokeFailed) {
+    Write-Warn2 "One or more helpers failed --help. Check Python deps."
+} else {
+    Write-Host "`n=== Setup complete ===" -ForegroundColor Cyan
+    Write-Host "Next: cd into a folder of raw video, run 'claude' there, and say:"
+    Write-Host '   "edit these into a launch video"' -ForegroundColor Yellow
+}
