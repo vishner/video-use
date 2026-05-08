@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(ffmpeg -version 2>&1)",
+      "PowerShell(ffprobe -version 2>&1)",
+      "Bash(ls -la \"/c/dev_ai/raw/vlog1/\" 2>&1 || echo \"DIR NOT FOUND\")",
+      "Bash(export PATH=\"$PATH:/c/Users/vishner/AppData/Local/Microsoft/WinGet/Links\")",
+      "Bash(ffprobe -v quiet -print_format json -show_streams -show_format \"C:/dev_ai/raw/vlog1/DD Matcha Strawberry Training Video.mp4\")",
+      "Bash(python3 -c ' *)",
+      "Bash(mkdir -p \"C:/dev_ai/raw/vlog1/edit/transcripts\")",
+      "Bash(python helpers/transcribe.py \"C:/dev_ai/raw/vlog1/DD Matcha Strawberry Training Video.mp4\" --edit-dir \"C:/dev_ai/raw/vlog1/edit\")",
+      "Bash(python helpers/pack_transcripts.py --edit-dir \"C:/dev_ai/raw/vlog1/edit\")",
+      "Bash(python helpers/timeline_view.py \"C:/dev_ai/raw/vlog1/DD Matcha Strawberry Training Video.mp4\" 0 89 -o \"C:/dev_ai/raw/vlog1/edit/verify/overview.png\")",
+      "Bash(mkdir -p \"C:/dev_ai/raw/vlog1/edit/verify\")",
+      "Bash(PYTHONPATH=\".\" python helpers/timeline_view.py \"C:/dev_ai/raw/vlog1/DD Matcha Strawberry Training Video.mp4\" 0 88 -o \"C:/dev_ai/raw/vlog1/edit/verify/overview.png\")",
+      "Bash(python helpers/render.py C:/dev_ai/raw/vlog1/edit/edl.json -o C:/dev_ai/raw/vlog1/edit/preview.mp4 --preview --build-subtitles)",
+      "Bash(ffmpeg -y -i C:/dev_ai/raw/vlog1/edit/base_preview.mp4 -vf 'subtitles='\\\\''C\\\\:/dev_ai/raw/vlog1/edit/master.srt'\\\\'':force_style='\\\\''FontName=Arial,FontSize=18,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2,Shadow=0,Alignment=2,MarginV=90'\\\\''' -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p -c:a copy C:/dev_ai/raw/vlog1/edit/test_subs.mp4)",
+      "Bash(ffprobe -v quiet -show_entries format=duration -of csv=p=0 \"C:/dev_ai/raw/vlog1/edit/preview.mp4\")",
+      "Bash(python -c \"import helpers.render; print\\('syntax OK'\\)\")",
+      "Bash(python helpers/render.py --help)",
+      "Bash(python helpers/render.py C:/dev_ai/raw/vlog1/edit/edl.json -o C:/dev_ai/raw/vlog1/edit/regression_test.mp4 --preview --build-subtitles)",
+      "Bash(python -c \"import helpers.analyze_audio; print\\('syntax OK'\\)\")",
+      "Bash(python helpers/analyze_audio.py --help)",
+      "Bash(python helpers/analyze_audio.py \"C:/dev_ai/raw/vlog1/DD Matcha Strawberry Training Video.mp4\")",
+      "Bash(ls \"C:\\\\dev_ai\\\\raw\\\\vlog1\\\\\" && echo \"---\" && ls \"C:\\\\dev_ai\\\\raw\\\\vlog1\\\\edit\\\\\")",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\dev_ai\\\\raw\\\\vlog1\" -Recurse -Force | ForEach-Object { $_.FullName })",
+      "PowerShell($env:PATH += \";C:\\\\Users\\\\vishner\\\\AppData\\\\Local\\\\Microsoft\\\\WinGet\\\\Links\"; ffmpeg -version 2>&1 | Select-Object -First 2)",
+      "PowerShell($env:PATH += \";C:\\\\Users\\\\vishner\\\\AppData\\\\Local\\\\Microsoft\\\\WinGet\\\\Links\"; $clips = @\\(\"C:\\\\dev_ai\\\\raw\\\\vlog1\\\\edit\\\\clips_preview\\\\seg_04_DD Matcha Strawberry Training Video.mp4\", \"C:\\\\dev_ai\\\\raw\\\\vlog1\\\\edit\\\\clips_preview\\\\seg_06_DD Matcha Strawberry Training Video.mp4\"\\); foreach \\($c in $clips\\) { $d = \\(ffprobe -v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $c\\); \"$\\([System.IO.Path]::GetFileName\\($c\\)\\): ${d}s\" })"
+    ]
+  }
+}
